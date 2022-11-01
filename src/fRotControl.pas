@@ -401,14 +401,18 @@ end;
 
 procedure TfrmRotControl.SynROT;
 
-const R = 6371e3; // metres
+const R = 6378137.0;              // WGS-84 semi-major axis metres
 var
-  Az : Double ;
+  Az, BeamWidth,AzCcw, AzCw : Double ;
   f  : TextFile;
   lat,
   lon,
   lat2,
   lon2,
+  LatCcw,
+  LonCcw,
+  LatCw,
+  LonCw,
   dist:currency;
 
 begin
@@ -418,20 +422,46 @@ begin
     Az := 0;
   lblAzimuth.Caption := FormatFloat(empty_azimuth+';;',Az);
 
-  //create file mylat mylon rotlat rotlon thicness
+  //create file mylat mylon rotlat rotlon thickness
   //-38.0 143.0 11.6 43.14 thickness=1.5
   AssignFile(f,dmData.HomeDir + 'xplanet' + PathDelim + 'rotor');
   Rewrite(f);
 
   dmUtils.CoordinateFromLocator(frmNewQSO.CurrentMyLoc,lat,lon);
-  dist:=100000;
+  dist:=17000e3;
+  BeamWidth:=50;
 
-  lat2 := arcsin( sin(lat)*cos(dist/R) + cos(lat)*sin(dist/R)*cos(DegToRad(Az)) );
-  lon2 := lon + arctan2(sin(DegToRad(Az))*sin(dist/R)*cos(lat), cos(dist/R)-sin(lat)*sin(lat2));
+
+  AzCcw := Az - BeamWidth/2;
+  AzCw :=  Az + BeamWidth/2;
+
+  lat2 := RadToDeg(arcsin( sin(DegToRad(lat))*cos(dist/R) + cos(DegToRad(lat))*sin(dist/R)*cos(DegToRad(Az)) ));
+  lon2 := RadToDeg(DegToRad(lon) + arctan2(sin(DegToRad(Az))*sin(dist/R)*cos(DegToRad(lat)), cos(dist/R)-sin(DegToRad(lat))*sin(DegToRad(lat2))));
+
+  LatCcw := RadToDeg(arcsin( sin(DegToRad(lat))*cos(dist/R) + cos(DegToRad(lat))*sin(dist/R)*cos(DegToRad(AzCcw)) ));
+  LonCcw := RadToDeg(DegToRad(lon) + arctan2(sin(DegToRad(AzCcw))*sin(dist/R)*cos(DegToRad(lat)), cos(dist/R)-sin(DegToRad(lat))*sin(DegToRad(LatCcw))));
+
+  LatCw := RadToDeg(arcsin( sin(DegToRad(lat))*cos(dist/R) + cos(DegToRad(lat))*sin(dist/R)*cos(DegToRad(AzCw)) ));
+  LonCw := RadToDeg(DegToRad(lon) + arctan2(sin(DegToRad(AzCw))*sin(dist/R)*cos(DegToRad(lat)), cos(dist/R)-sin(DegToRad(lat))*sin(DegToRad(LatCw))));
+
+  Writeln(f,'# Rotor pointing vector for xplanet');
+  Writeln(f,'# Range: ',FormatFloat(empty_azimuth+';;',dist/1000),' Km');
+  Writeln(f,'# Bearing: ',FormatFloat(empty_azimuth+';;',Az));
+  Writeln(f,'# Beamwidth: ',FormatFloat(empty_azimuth+';;',BeamWidth));
+  Writeln(f,'# lat: ',FormatFloat(empty_azimuth+';;',lat), ' lon: ',FormatFloat(empty_azimuth+';;',lon));
 
   Writeln(f,FormatFloat(empty_azimuth+';;',lat) ,' ',FormatFloat(empty_azimuth+';;',lon),
-        ' ',FormatFloat(empty_azimuth+';;',lat2) ,' ',FormatFloat(empty_azimuth+';;',lon2),' thickness=1.5');
-  CloseFile(f);
+        ' ',FormatFloat(empty_azimuth+';;',lat2) ,' ',FormatFloat(empty_azimuth+';;',lon2),' thickness=4 color=red');
+  if BeamWidth>0 then
+  begin
+    Writeln(f,FormatFloat(empty_azimuth+';;',lat) ,' ',FormatFloat(empty_azimuth+';;',lon),
+          ' ',FormatFloat(empty_azimuth+';;',LatCcw) ,' ',FormatFloat(empty_azimuth+';;',LonCcw),' thickness=1.5 color=yellow');
+    Writeln(f,FormatFloat(empty_azimuth+';;',lat) ,' ',FormatFloat(empty_azimuth+';;',lon),
+          ' ',FormatFloat(empty_azimuth+';;',LatCw) ,' ',FormatFloat(empty_azimuth+';;',LonCw),' thickness=1.5 color=yellow');
+    Writeln(f,FormatFloat(empty_azimuth+';;',LatCcw) ,' ',FormatFloat(empty_azimuth+';;',LonCcw),
+          ' ',FormatFloat(empty_azimuth+';;',LatCw) ,' ',FormatFloat(empty_azimuth+';;',LonCw),' thickness=1.5 color=yellow');
+  end;
+  CloseFile(f);    
 end;
 
 end.
